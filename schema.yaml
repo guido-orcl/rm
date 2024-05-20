@@ -1,0 +1,180 @@
+# Title shown in Application Information tab.
+title: Compute instance deployment
+# Sub Title shown in Application Information tab.
+description: Sample compute instance deployment using schema.yaml file
+informationalText: Details regarding the deployment...
+schemaVersion: 1.1.0
+version: "20190304"
+
+# URL of Logo Icon used on Application Information tab. Logo must be 130x130 pixels.
+# (Optional)
+# logoUrl: https://...
+
+locale: "en"
+variableGroups:
+  - title: "Instance placement"
+    visible: true
+    variables:
+      - compartment_ocid
+      - instance_availability_domain
+  - title: "Instance configuration"
+    visible: true
+    variables:
+      - instance_display_name
+      - instance_shape
+      - instance_shape_config_memory_in_gbs
+      - instance_shape_config_ocpus
+      - image_ocid
+  - title: "Network configuration"
+    visible: true
+    variables:
+      - assign_public_ip
+      - ${vcnCompartment}
+      - ${vcn_id}
+      - ${subnetCompartment}
+      - subnet_id
+
+  - title: "SSH connectivity"
+    visible: true
+    variables:
+      - public_key
+  - title: "Hidden"
+    visible: false
+    variables:
+      - region
+      - user_ocid
+      - fingerprint
+
+variables:
+  # string field
+  instance_display_name:
+    type: string
+    minLength: 3
+    maxLength: 64
+    pattern: "^[a-zA-Z0-9][a-zA-Z0-9-]+$"
+    # title is used as the label if present
+    title: Instance display name.
+    # description used as the tooltip if present
+    description: Display name of the instance.
+    default: demo-schema
+    required: true
+
+  instance_availability_domain:
+    title: Select Availability domain where to create the instance
+    type: oci:identity:availabilitydomain:name
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    visible: true
+    required: true
+
+  compartment_ocid:
+    title: Select instance parent compartment.
+    type: oci:identity:compartment:id
+    required: true
+
+  assign_public_ip:
+    title: Assign a public IP to the instance?
+    type: boolean
+    default: true
+    required: true
+
+  vcnCompartment:
+    type: oci:identity:compartment:id
+    title: Select VCN compartment
+
+  vcn_id:
+    type: oci:core:vcn:id
+    title: Select VCN where to connect the instance.
+    dependsOn:
+      compartmentId: ${vcnCompartment}
+    visible: true
+
+  subnetCompartment:
+    title: Select subnet compartment.
+    type: oci:identity:compartment:id
+    visible: true
+
+  subnet_id:
+    type: oci:core:subnet:id
+    title: Select subnet where to connect the instance.
+    dependsOn:
+      compartmentId: ${subnetCompartment}
+      vcnId: ${vcn_id}
+      hidePublicSubnet:
+        not:
+          - ${assign_public_ip}
+    visible: true
+    required: true
+
+  instance_shape:
+    type: oci:core:instanceshape:name
+    title: Compute shape for the instance.
+    pattern: ^.*?(Standard|Optimized).*?(3\.Flex|4\.Flex).*?$
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+      availabilityDomain: ${instance_availability_domain}
+    visible: true
+    required: true
+
+  instance_shape_config_ocpus:
+    type: integer
+    title: Number of cores for the instance.
+    minimum: 1
+    maximum: 4
+    default: 1
+    required: true
+
+  instance_shape_config_memory_in_gbs:
+    type: integer
+    title: Amount of memory in GB for the instance.
+    minimum: 2
+    maximum: 16
+    default: 8
+    required: true
+
+  image_ocid:
+    type: oci:core:image:id
+    title: Select instance OS image.
+    required: true
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+      shape: ${instance_shape}
+      operatingSystem: "Oracle Linux"
+
+  public_key:
+    title: SSH Public Key
+    type: oci:core:ssh:publickey
+    required: true    
+
+outputs:
+
+  instance_name:
+    type: string
+    title: Instance name
+
+  instance_public_ip:
+    type: copyableString
+    title: Instance public IP address
+
+  instance_private_ip:
+    type: string
+    title: Instance private IP address
+
+  ssh_private_key:
+    type: copyableString
+    title: SSH private key
+    sensitive: true
+
+# Used to group Outputs.  Any outputs not included in these defined groups, are
+# included in a default group labelled "Outputs".
+# (Optional) if not groups are given, outputs are not grouped at all.
+outputGroups:
+  - title: Instance attributes
+    outputs:
+      - ${instance_name}
+      - ${instance_public_ip}
+      - ${instance_private_ip}
+
+  - title: SSH key
+    outputs:
+      - ${ssh_private_key}
